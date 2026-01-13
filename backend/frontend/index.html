@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>ManuKnow • Sistema de Manutenção Industrial</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 30px;
+}
+
+.app {
+  width: 100%;
+  max-width: 1300px;
+  background: #f4f6f8;
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.45);
+  padding: 30px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+header h1 {
+  margin: 0;
+  color: #0b1f33;
+}
+
+header span {
+  color: #2c5364;
+  font-weight: 600;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  margin-bottom: 25px;
+}
+
+.card h2 {
+  margin-top: 0;
+  color: #203a43;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin-top: 5px;
+}
+
+button {
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg,#2c5364,#203a43);
+  color: white;
+}
+
+.btn-danger {
+  background: #c0392b;
+  color: white;
+}
+
+.btn-pdf {
+  background: #27ae60;
+  color: white;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+th {
+  background: #203a43;
+  color: white;
+  padding: 12px;
+}
+
+td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.status-aberta {
+  color: #e67e22;
+  font-weight: bold;
+}
+
+.status-fechada {
+  color: #27ae60;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+  <h1>ManuKnow <span>• Manutenção Industrial</span></h1>
+  <span>Sistema Profissional de O.S.</span>
+</header>
+
+<div class="card">
+  <h2>Abrir Nova Ordem de Serviço</h2>
+
+  <div class="form-grid">
+    <div>
+      <label>Nº da O.S.</label>
+      <input id="numero_os">
+    </div>
+    <div>
+      <label>Máquina</label>
+      <input id="maquina">
+    </div>
+    <div>
+      <label>Responsável</label>
+      <input id="responsavel">
+    </div>
+    <div>
+      <label>Problema</label>
+      <input id="problema">
+    </div>
+    <div>
+      <label>Solução</label>
+      <input id="solucao">
+    </div>
+  </div>
+
+  <br>
+  <button class="btn-primary" onclick="abrirOS()">Registrar O.S.</button>
+  <span id="msg"></span>
+</div>
+
+<div class="card">
+  <h2>Ordens de Serviço</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>O.S.</th>
+        <th>Máquina</th>
+        <th>Responsável</th>
+        <th>Status</th>
+        <th>Início</th>
+        <th>Fim</th>
+        <th>Tempo (min)</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="lista"></tbody>
+  </table>
+</div>
+
+</div>
+
+<script>
+const API = "http://localhost:3001";
+
+function abrirOS() {
+  const data = {
+    numero_os: numero_os.value,
+    maquina: maquina.value,
+    problema: problema.value,
+    solucao: solucao.value,
+    responsavel: responsavel.value
+  };
+
+  fetch(API+"/manutencao", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(data)
+  }).then(()=>listar());
+}
+
+function listar() {
+  fetch(API+"/manutencao")
+    .then(r=>r.json())
+    .then(dados=>{
+      lista.innerHTML="";
+      dados.forEach(o=>{
+        lista.innerHTML+=`
+        <tr>
+          <td>${o.id}</td>
+          <td>${o.numero_os}</td>
+          <td>${o.maquina}</td>
+          <td>${o.responsavel}</td>
+          <td class="${o.status==="ABERTA"?"status-aberta":"status-fechada"}">${o.status}</td>
+          <td>${o.data_inicio||"-"}</td>
+          <td>${o.data_fim||"-"}</td>
+          <td>${o.tempo_servico||"-"}</td>
+          <td>
+            ${o.status==="ABERTA"
+              ? `<button class="btn-danger" onclick="fechar(${o.id})">Fechar</button>`
+              : `<button class="btn-pdf" onclick='pdf(${JSON.stringify(o)})'>PDF</button>`}
+          </td>
+        </tr>`;
+      });
+    });
+}
+
+function fechar(id){
+  fetch(API+`/manutencao/${id}/fechar`,{method:"POST"}).then(()=>listar());
+}
+
+function pdf(o){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF();
+  doc.text(`RELATÓRIO O.S. ${o.numero_os}`,20,20);
+  doc.text(`Máquina: ${o.maquina}`,20,30);
+  doc.text(`Responsável: ${o.responsavel}`,20,40);
+  doc.text(`Problema: ${o.problema}`,20,50);
+  doc.text(`Solução: ${o.solucao}`,20,60);
+  doc.text(`Início: ${o.data_inicio}`,20,70);
+  doc.text(`Fim: ${o.data_fim}`,20,80);
+  doc.text(`Tempo: ${o.tempo_servico} min`,20,90);
+  doc.save(`OS_${o.numero_os}.pdf`);
+}
+
+listar();
+</script>
+
+</body>
+</html>
